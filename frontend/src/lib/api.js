@@ -58,7 +58,9 @@ export async function listShipments({ q = "", status = "", from = null, to = nul
   return { items, total, page, limit }
 }
 
-// Get single shipment by tracking
+// bad example 
+// uncomment to see ui example flow 
+
 export async function getShipment(tracking) {
   await delay()
 
@@ -70,6 +72,7 @@ export async function getShipment(tracking) {
   return shipment
 }
 
+
 // Get shipment events timeline
 export async function getShipmentEvents(tracking) {
   await delay()
@@ -78,6 +81,42 @@ export async function getShipmentEvents(tracking) {
   // Return newest first
   return [...events].reverse()
 }
+
+// START HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+// Get single shipment by tracking
+// when youre done testing then you can uncomment 
+// export async function getShipment(tracking) {
+  
+//   // /tracking/:track
+//   try {
+//     const response = await fetch(`http://localhost:8088/tracking/${tracking}`)
+//     if (!response.ok) {
+//       throw new Error("Failed to fetch shipment")
+//     }
+//     const data = await response.json()
+//     return data
+//   } catch (error) {
+//     throw new Error("Failed to fetch shipment")
+//   }
+
+// }
+
+
+
+// Get shipment events timeline
+// export async function getShipmentEvents(tracking) {
+//   await delay()
+
+//   const events = eventsByTracking[tracking] || []
+//   // Return newest first
+//   return [...events].reverse()
+// }
+
+
+
+
 
 // Create new shipment
 export async function createShipment(data) {
