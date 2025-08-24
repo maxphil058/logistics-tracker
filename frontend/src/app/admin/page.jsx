@@ -135,7 +135,7 @@ export default function AdminDashboard() {
         {/* Status Cards */}
         <StatusCards shipments={shipments} />
 
-        {/* Recent Activity */}
+        {/* Recent Activity  AND NUMBER OF SHIPMENTS BY STATUS*/}
         <Card>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
@@ -163,6 +163,11 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* END OF Recent Activity */}
+
+
+
 
         {/* Shipments Table */}
         <Card>
