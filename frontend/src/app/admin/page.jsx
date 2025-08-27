@@ -8,7 +8,7 @@ import { ShipmentsTable } from "@/components/ShipmentsTable"
 import { FiltersBar } from "@/components/FiltersBar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { listShipments, exportCsv } from "@/lib/api"
+import { listShipments, exportCsv, getRecentActivity, getDashboardCounts } from "@/lib/api"
 import { shipments, eventsByTracking } from "@/lib/mockData"
 import { getRelativeTime } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [totalShipments, setTotalShipments] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true)
 
   // Filters state from URL
   const [filters, setFilters] = useState({
@@ -36,10 +37,8 @@ export default function AdminDashboard() {
   })
 
   // Recent activity - combine all events and get latest 20
-  const recentActivity = Object.values(eventsByTracking)
-    .flat()
-    .sort((a, b) => new Date(b.at) - new Date(a.at))
-    .slice(0, 20)
+  const [recentActivity, setRecentActivity] = useState([])
+  const [dashboardCounts, setDashboardCounts] = useState({})
 
   // Update URL when filters change
   const updateUrl = (newFilters) => {
@@ -110,10 +109,36 @@ export default function AdminDashboard() {
     }
   }
 
+  // Load dashboard data
+  const loadDashboardData = async () => {
+    setIsDashboardLoading(true)
+    try {
+      const [activityData, countsData] = await Promise.all([
+        getRecentActivity(),
+        getDashboardCounts()
+      ])
+      setRecentActivity(activityData.slice(0, 20)) // Limit to 20 items
+      setDashboardCounts(countsData)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDashboardLoading(false)
+    }
+  }
+
   // Load data when filters change
   useEffect(() => {
     loadShipments()
   }, [filters])
+
+  // Load dashboard data on mount
+  useEffect(() => {
+    loadDashboardData()
+  }, [])
 
   const totalPages = Math.ceil(totalShipments / filters.limit)
 
@@ -133,7 +158,7 @@ export default function AdminDashboard() {
     >
       <div className="space-y-6">
         {/* Status Cards */}
-        <StatusCards shipments={shipments} />
+        <StatusCards  />
 
         {/* Recent Activity  AND NUMBER OF SHIPMENTS BY STATUS*/}
         <Card>
@@ -183,7 +208,7 @@ export default function AdminDashboard() {
               isExporting={isExporting}
             />
 
-            {isLoading ? (
+            {isLoading || isDashboardLoading ? (
               <div className="text-center py-8">Loading shipments...</div>
             ) : (
               <ShipmentsTable
