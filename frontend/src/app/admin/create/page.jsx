@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageShell } from "@/components/PageShell"
 import { createShipment } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
-import { PlusIcon } from "lucide-react"
+import { AwardIcon, PlusIcon } from "lucide-react"
 
 export default function CreateShipmentPage() {
   const router = useRouter()
@@ -74,10 +74,10 @@ export default function CreateShipmentPage() {
 
       toast({
         title: "Shipment created",
-        description: `Shipment ${shipment.tracking} has been created successfully`,
+        description: `Shipment ${shipment} has been created successfully`,
       })
 
-      router.push(`/admin/shipments/${shipment.tracking}`)
+      router.push(`/admin/shipments/${shipment}`)
     } catch (error) {
       toast({
         title: "Error",
