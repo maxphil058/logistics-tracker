@@ -1,49 +1,70 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { STATUSES } from "@/lib/status"
+import { getDashboardCounts } from "@/lib/api"
+import { useState, useEffect } from "react"
 
-export function StatusCards({ shipments = [] }) {
-  // Count shipments by status
-  const counts = Object.values(STATUSES).reduce((acc, status) => {
-    acc[status] = shipments.filter((s) => s.status === status).length
-    return acc
-  }, {})
+export function StatusCards({  isLoading = false }) {
+  // Handle both old format (array of shipments) and new format (array of {status, count})
+  
+
+	// private String status;
+
+	// private int count;
+  
+//  /shipments/dashboard-counts
+
+const [countsArray, setCountsArray] = useState([]);
+
+useEffect(() => {
+  async function load() {
+    const data = await getDashboardCounts(); // ✅ resolved array
+    setCountsArray(data);
+  }
+  load();
+}, []);
+
+
+const getCount = (status) =>
+  countsArray.find(c => c.status === status)?.count ?? 0;
+
 
   const cards = [
     {
       title: "Created",
-      count: counts[STATUSES.CREATED],
+      count:  getCount(STATUSES.CREATED),
       status: STATUSES.CREATED,
       description: "New shipments",
     },
     {
       title: "In Transit",
-      count: counts[STATUSES.IN_TRANSIT],
+      count: getCount(STATUSES.IN_TRANSIT),
       status: STATUSES.IN_TRANSIT,
       description: "Currently shipping",
     },
     {
       title: "Out for Delivery",
-      count: counts[STATUSES.OUT_FOR_DELIVERY],
+      count: getCount(STATUSES.OUT_FOR_DELIVERY),
       status: STATUSES.OUT_FOR_DELIVERY,
       description: "Final delivery",
     },
     {
       title: "Delivered",
-      count: counts[STATUSES.DELIVERED],
+      count: getCount(STATUSES.DELIVERED),
       status: STATUSES.DELIVERED,
       description: "Successfully delivered",
     },
     {
       title: "Delayed",
-      count: counts[STATUSES.DELAYED],
+      count: getCount(STATUSES.DELAYED),
       status: STATUSES.DELAYED,
       description: "Behind schedule",
     },
     {
       title: "Exception",
-      count: counts[STATUSES.EXCEPTION],
+      count: getCount(STATUSES.EXCEPTION),
       status: STATUSES.EXCEPTION,
       description: "Requires attention",
     },
@@ -57,8 +78,17 @@ export function StatusCards({ shipments = [] }) {
             <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{card.count}</div>
-            <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
+            {isLoading ? (
+              <>
+                <Skeleton className="h-8 w-12 mb-1" />
+                <Skeleton className="h-3 w-20" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{card.count}</div>
+                <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
+              </>
+            )}
           </CardContent>
         </Card>
       ))}
