@@ -1,266 +1,201 @@
-import { shipments, eventsByTracking } from "./mockData.js"
-import { STATUSES, allowedTransitions } from "./status.js"
-import { generateTracking } from "./utils.js"
+// API Client for Logistics Tracker Backend
+// Base URL: http://localhost:8080
 
-// Simulate network delay
-const delay = (ms = 600) => new Promise((resolve) => setTimeout(resolve, ms))
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080"
 
-// Mock authentication - UI only
-export async function login(email, password) {
-  await delay()
+// Token management helpers
+export function getToken() {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem("jwt")
+}
 
-  // Simple mock validation
-  if (email === "admin@company.com" && password === "password") {
-    return {
-      token: "mock-jwt-token-" + Date.now(),
-      user: { email, role: "admin" },
+export function setToken(token) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("jwt", token)
+  }
+}
+
+export function clearToken() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("jwt")
+  }
+}
+
+// Generic API client helper
+async function apiCall(path, { method = "GET", body, auth = false } = {}) {
+  const headers = { "Content-Type": "application/json" }
+  
+  if (auth) {
+    const token = getToken()
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
     }
   }
 
-  throw new Error("Invalid credentials")
+  const config = {
+    method,
+    headers,
+  }
+
+  if (body) {
+    config.body = JSON.stringify(body)
+  }
+
+  const response = await fetch(`${BASE_URL}${path}`, config)
+  
+  const text = await response.text()
+  let data = null
+  
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = text
+    }
+  }
+
+  if (!response.ok) {
+    // Clear token on auth errors
+    if (response.status === 401 || response.status === 403) {
+      clearToken()
+    }
+    throw new Error("Request failed")
+  }
+
+  return data
 }
 
-// List shipments with filtering and pagination
+// Authentication
+export async function login(email, password) {
+  const response = await apiCall("/api/auth/login", {
+    method: "POST",
+    body: { email, password }
+  })
+  
+  if (!response.token) {
+    throw new Error("No token in response")
+  }
+  
+  setToken(response.token)
+  return {
+    token: response.token,
+    user: { email, role: "admin" }
+  }
+}
+
+export function logout() {
+  clearToken()
+}
+
+// Admin endpoints (require JWT)
+
+// List shipments with filtering
 export async function listShipments({ q = "", status = "", from = null, to = null, page = 1, limit = 10 } = {}) {
-  await delay()
-
-  let filtered = [...shipments]
-
-  // Filter by search query (tracking or email)
-  if (q) {
-    const query = q.toLowerCase()
-    filtered = filtered.filter(
-      (s) => s.tracking.toLowerCase().includes(query) || s.customerEmail.toLowerCase().includes(query),
-    )
-  }
-
-  // Filter by status
-  if (status) {
-    filtered = filtered.filter((s) => s.status === status)
-  }
-
-  // Filter by date range (createdAt)
-  if (from) {
-    filtered = filtered.filter((s) => new Date(s.createdAt) >= new Date(from))
-  }
-  if (to) {
-    filtered = filtered.filter((s) => new Date(s.createdAt) <= new Date(to))
-  }
-
-  // Sort by updatedAt desc
-  filtered.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-
-  // Paginate
-  const total = filtered.length
+  const params = new URLSearchParams()
+  
+  if (q) params.set("trackingOrEmail", q)
+  if (status) params.set("status", status)
+  if (from) params.set("from", from)
+  if (to) params.set("to", to)
+  
+  const queryString = params.toString() ? `?${params}` : ""
+  const shipments = await apiCall(`/api/admin/shipments${queryString}`, { auth: true })
+  
+  // Transform to match UI expectations (add pagination)
+  const total = shipments.length
   const start = (page - 1) * limit
-  const items = filtered.slice(start, start + limit)
-
+  const items = shipments.slice(start, start + limit)
+  
   return { items, total, page, limit }
 }
 
-// bad example 
-// uncomment to see ui example flow 
-
+// Get single shipment (admin view)
 export async function getShipment(tracking) {
-  await delay()
-
-  const shipment = shipments.find((s) => s.tracking === tracking)
-  if (!shipment) {
-    throw new Error("Shipment not found")
-  }
-
-  return shipment
+  return await apiCall(`/api/admin/tracking/${encodeURIComponent(tracking)}`, { auth: true })
 }
 
-
-// Get shipment events timeline
+// Get shipment events (admin view)
 export async function getShipmentEvents(tracking) {
-  await delay()
-
-  const events = eventsByTracking[tracking] || []
-  // Return newest first
-  return [...events].reverse()
+  return await apiCall(`/api/admin/tracking/${encodeURIComponent(tracking)}/events`, { auth: true })
 }
-
-// START HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-// Get single shipment by tracking
-// when youre done testing then you can uncomment 
-// export async function getShipment(tracking) {
-  
-//   // /tracking/:track
-//   try {
-//     const response = await fetch(`http://localhost:8088/tracking/${tracking}`)
-//     if (!response.ok) {
-//       throw new Error("Failed to fetch shipment")
-//     }
-//     const data = await response.json()
-//     return data
-//   } catch (error) {
-//     throw new Error("Failed to fetch shipment")
-//   }
-
-// }
-
-
-
-// Get shipment events timeline
-// export async function getShipmentEvents(tracking) {
-//   await delay()
-
-//   const events = eventsByTracking[tracking] || []
-//   // Return newest first
-//   return [...events].reverse()
-// }
-
-
-
-
 
 // Create new shipment
 export async function createShipment(data) {
-  await delay()
-
-  const now = new Date().toISOString()
-  const tracking = data.tracking || generateTracking()
-
-  const newShipment = {
-    tracking,
+  const payload = {
     origin: data.origin,
     destination: data.destination,
     eta: data.eta,
-    status: STATUSES.CREATED,
     customerEmail: data.customerEmail,
-    createdAt: now,
-    updatedAt: now,
-    deliveredAt: null,
+    actor: "admin@company.com", // Default actor
+    note: data.note || "Shipment created"
   }
-
-  // Add to mock data
-  shipments.push(newShipment)
-
-  // Add initial event
-  const initialEvent = {
-    tracking,
-    status: STATUSES.CREATED,
-    note: data.note || "Shipment created",
-    at: now,
-    actor: "ops@company.com",
-  }
-
-  if (!eventsByTracking[tracking]) {
-    eventsByTracking[tracking] = []
-  }
-  eventsByTracking[tracking].push(initialEvent)
-
-  return newShipment
+  
+  return await apiCall("/api/admin/shipments", {
+    method: "POST",
+    auth: true,
+    body: payload
+  })
 }
 
 // Change shipment status
 export async function changeStatus(tracking, toStatus, note = "") {
-  await delay()
-
-  const shipment = shipments.find((s) => s.tracking === tracking)
-  if (!shipment) {
-    throw new Error("Shipment not found")
-  }
-
-  // Validate transition
-  const allowed = allowedTransitions[shipment.status] || []
-  if (!allowed.includes(toStatus)) {
-    throw new Error(`Cannot transition from ${shipment.status} to ${toStatus}`)
-  }
-
-  // Update shipment
-  const now = new Date().toISOString()
-  shipment.status = toStatus
-  shipment.updatedAt = now
-
-  if (toStatus === STATUSES.DELIVERED) {
-    shipment.deliveredAt = now
-  }
-
-  // Add event
-  const event = {
-    tracking,
-    status: toStatus,
-    note: note || `Status changed to ${toStatus}`,
-    at: now,
-    actor: "ops@company.com",
-  }
-
-  if (!eventsByTracking[tracking]) {
-    eventsByTracking[tracking] = []
-  }
-  eventsByTracking[tracking].push(event)
-
-  return shipment
+  return await apiCall(`/api/admin/shipments/${encodeURIComponent(tracking)}/status`, {
+    method: "PATCH",
+    auth: true,
+    body: { status: toStatus, note: note || `Status changed to ${toStatus}` }
+  })
 }
 
 // Update ETA
 export async function updateEta(tracking, isoString) {
-  await delay()
-
-  const shipment = shipments.find((s) => s.tracking === tracking)
-  if (!shipment) {
-    throw new Error("Shipment not found")
-  }
-
-  const now = new Date().toISOString()
-  shipment.eta = isoString
-  shipment.updatedAt = now
-
-  // Add event
-  const event = {
-    tracking,
-    status: shipment.status,
-    note: `ETA updated to ${new Date(isoString).toLocaleString()}`,
-    at: now,
-    actor: "ops@company.com",
-  }
-
-  if (!eventsByTracking[tracking]) {
-    eventsByTracking[tracking] = []
-  }
-  eventsByTracking[tracking].push(event)
-
-  return shipment
+  return await apiCall(`/api/admin/shipments/${encodeURIComponent(tracking)}/ETA`, {
+    method: "PATCH",
+    auth: true,
+    body: { eta: isoString }
+  })
 }
 
 // Add note to shipment
 export async function addNote(tracking, note) {
-  await delay()
-
-  const shipment = shipments.find((s) => s.tracking === tracking)
-  if (!shipment) {
-    throw new Error("Shipment not found")
-  }
-
-  const now = new Date().toISOString()
-  shipment.updatedAt = now
-
-  // Add event
-  const event = {
-    tracking,
-    status: shipment.status,
-    note,
-    at: now,
-    actor: "ops@company.com",
-  }
-
-  if (!eventsByTracking[tracking]) {
-    eventsByTracking[tracking] = []
-  }
-  eventsByTracking[tracking].push(event)
-
-  return shipment
+  return await apiCall(`/api/admin/shipments/${encodeURIComponent(tracking)}/note`, {
+    method: "PATCH",
+    auth: true,
+    body: { note }
+  })
 }
 
-// Export CSV (client-side generation)
-export async function exportCsv(filters = {}) {
-  await delay(300)
+// Mark shipment as delayed
+export async function markDelayed(tracking) {
+  return await apiCall(`/api/admin/shipments/${encodeURIComponent(tracking)}/delayed`, {
+    method: "PATCH",
+    auth: true
+  })
+}
 
+// Get dashboard counts
+export async function getDashboardCounts() {
+  return await apiCall("/api/admin/shipments/dashboard-counts", { auth: true })
+}
+
+// Get recent activity
+export async function getRecentActivity() {
+  return await apiCall("/api/admin/shipmentsActivity", { auth: true })
+}
+
+// Public endpoints (no auth required)
+
+// Get shipment for public tracking
+export async function getShipmentPublic(tracking) {
+  return await apiCall(`/api/tracking/${encodeURIComponent(tracking)}`)
+}
+
+// Get shipment events for public tracking
+export async function getShipmentEventsPublic(tracking) {
+  return await apiCall(`/api/tracking/${encodeURIComponent(tracking)}/events`)
+}
+
+// Export CSV (client-side generation using real data)
+export async function exportCsv(filters = {}) {
   const { items } = await listShipments({ ...filters, page: 1, limit: 1000 })
 
   const headers = ["Tracking", "Origin", "Destination", "Status", "Customer Email", "ETA", "Created At", "Updated At"]
@@ -290,39 +225,3 @@ export async function exportCsv(filters = {}) {
 
   return true
 }
-
-/* 
-SWITCH TO REAL API - Replace the above functions with actual fetch calls:
-
-// Example real implementation:
-export async function login(email, password) {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-  
-  if (!response.ok) {
-    throw new Error('Invalid credentials');
-  }
-  
-  return response.json();
-}
-
-export async function listShipments(filters) {
-  const params = new URLSearchParams(filters);
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/shipments?${params}`, {
-    headers: { 'Authorization': `Bearer ${getToken()}` }
-  });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch shipments');
-  }
-  
-  return response.json();
-}
-
-// Add similar patterns for all other functions...
-// Remember to add Authorization header for admin routes
-// Map backend response shapes to match current UI expectations
-*/
