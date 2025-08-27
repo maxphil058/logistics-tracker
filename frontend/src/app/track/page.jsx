@@ -10,7 +10,7 @@ import { NavBar } from "@/components/NavBar"
 import { StatusBadge } from "@/components/StatusBadge"
 import { Timeline } from "@/components/Timeline"
 import { Toaster } from "@/components/Toaster"
-import { getShipment, getShipmentEvents } from "@/lib/api"
+import { getShipmentPublic, getShipmentEventsPublic } from "@/lib/api"
 import { formatDateTime, isLate } from "@/lib/utils"
 import { SearchIcon, PackageIcon, MapPinIcon, ClockIcon } from "lucide-react"
 
@@ -38,8 +38,8 @@ export default function TrackPage() {
 
     try {
       const [shipmentData, eventsData] = await Promise.all([
-        getShipment(trackingNumber.trim()),
-        getShipmentEvents(trackingNumber.trim()),
+        getShipmentPublic(trackingNumber.trim()),
+        getShipmentEventsPublic(trackingNumber.trim()),
       ])
 
       setShipment(shipmentData)
