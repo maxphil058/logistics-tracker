@@ -41,7 +41,7 @@ export default function LoginPage() {
       })
 
       // In a real app, you'd store the token
-      // localStorage.setItem('token', result.token)
+      localStorage.setItem('token', result.token)
 
       router.push("/admin")
     } catch (err) {
