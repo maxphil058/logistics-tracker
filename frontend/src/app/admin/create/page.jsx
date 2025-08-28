@@ -106,19 +106,7 @@ export default function CreateShipmentPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              {/* remove this later, not needed */}
-              {/* <div className="space-y-2">
-                <Label htmlFor="tracking">Tracking Number (Optional)</Label>
-                <Input
-                  id="tracking"
-                  placeholder="Leave empty to auto-generate"
-                  value={formData.tracking}
-                  onChange={(e) => handleChange("tracking", e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  If left empty, a tracking number will be generated automatically
-                </p>
-              </div> */}
+              
 
               <div className="space-y-2">
                 <Label htmlFor="customerEmail">Customer Email *</Label>

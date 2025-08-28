@@ -40,7 +40,7 @@ export default function LoginPage() {
         description: "Welcome to the admin dashboard",
       })
 
-      // In a real app, you'd store the token
+      
       localStorage.setItem('token', result.token)
 
       router.push("/admin")
