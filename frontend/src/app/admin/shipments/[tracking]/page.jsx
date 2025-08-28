@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +29,7 @@ import {
 export default function ShipmentDetailPage() {
   const params = useParams()
   const tracking = params.tracking
+  const router = useRouter()
   const { toast } = useToast()
 
   const [shipment, setShipment] = useState(null)
@@ -70,6 +71,7 @@ export default function ShipmentDetailPage() {
       // Reload events to show the new status change
       const updatedEvents = await getShipmentEvents(trackingNum)
       setEvents(updatedEvents)
+      window.location.reload();
     } catch (error) {
       throw error // Re-throw to let StatusChanger handle the error
     }
@@ -83,6 +85,7 @@ export default function ShipmentDetailPage() {
       // Reload events to show the ETA update
       const updatedEvents = await getShipmentEvents(trackingNum)
       setEvents(updatedEvents)
+      window.location.reload();
     } catch (error) {
       throw error
     }
@@ -95,6 +98,8 @@ export default function ShipmentDetailPage() {
 
       // Reload events to show the new note
       const updatedEvents = await getShipmentEvents(trackingNum)
+      window.location.reload();
+      
       setEvents(updatedEvents)
     } catch (error) {
       throw error
@@ -108,6 +113,7 @@ export default function ShipmentDetailPage() {
         title: "Status updated",
         description: "Shipment marked as delayed",
       })
+      window.location.reload();
     } catch (error) {
       toast({
         title: "Error",
